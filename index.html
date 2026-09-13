@@ -122,6 +122,33 @@
   .model-option .model-name { font-size: 0.8125rem; font-weight: 600; color: #1A1F1D; }
   .model-option .model-desc { font-size: 0.6875rem; color: #6B716C; margin-top: 1px; }
 
+  .mode-toggle-btn { color: #7D857F; letter-spacing: 0.03em; }
+  .mode-toggle-btn:hover { color: #C9CFC9; }
+  .mode-toggle-btn.mode-active { background: #2F6F5E; color: #F3F4F1; }
+
+  #anti-slop-toggle[aria-pressed="true"] { background: #2F6F5E; }
+  #anti-slop-toggle[aria-pressed="true"] .anti-slop-knob { transform: translateX(14px); }
+
+  .wiring-diagram {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    line-height: 1.55;
+    white-space: pre;
+    overflow-x: auto;
+    background: #14181A;
+    color: #C9CFC9;
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .component-chip { display: flex; align-items: center; gap: 0.5rem; border: 1px solid #DEDFDA; border-radius: 10px; padding: 0.55rem 0.75rem; background: #FFFFFF; transition: all .15s; cursor: pointer; }
+  .component-chip:hover { border-color: #2F6F5E; }
+  .component-chip.checked { border-color: #2F6F5E; background: #E1EBE6; }
+  .component-chip .chip-check { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid #DEDFDA; display: flex; align-items: center; justify-content: center; shrink: 0; flex-shrink: 0; transition: all .15s; }
+  .component-chip.checked .chip-check { background: #2F6F5E; border-color: #2F6F5E; }
+  .component-chip .chip-check svg { opacity: 0; transition: opacity .1s; }
+  .component-chip.checked .chip-check svg { opacity: 1; }
+
   button { transition: background-color .15s, border-color .15s, color .15s, opacity .15s, transform .1s; }
   button:active:not(:disabled) { transform: scale(0.97); }
 
@@ -204,6 +231,13 @@
       </button>
     </div>
 
+    <div class="px-3 pb-3 shrink-0">
+      <div id="mode-toggle" class="flex border border-white/15 rounded-lg p-0.5 text-xs font-mono">
+        <button type="button" data-mode="web" onclick="setAppMode('web')" class="mode-toggle-btn flex-1 py-1.5 rounded-md transition-colors">WEB</button>
+        <button type="button" data-mode="arduino" onclick="setAppMode('arduino')" class="mode-toggle-btn flex-1 py-1.5 rounded-md transition-colors">ARDUINO</button>
+      </div>
+    </div>
+
     <div class="px-4 mt-4 mb-1 text-xs text-sidebarmuted shrink-0">Riwayat</div>
     <div id="sidebar-history" class="flex-1 overflow-y-auto scrollbar-thin-dark px-2 space-y-0.5 pb-2"></div>
     <div id="sidebar-history-empty" class="hidden px-4 py-3 text-xs text-sidebarmuted">Belum ada proyek tersimpan.</div>
@@ -237,12 +271,17 @@
 
       <!-- Empty state -->
       <div id="empty-state" class="h-full flex flex-col items-center justify-center px-6 text-center">
-        <h1 class="text-2xl sm:text-3xl font-medium tracking-tight mb-3">Apa yang mau kamu bangun?</h1>
-        <p class="text-stone text-sm leading-relaxed max-w-sm mb-8">Ceritakan idemu. Prompt Analyzer akan susun langkah kerja bertahap lengkap dengan prompt siap tempel ke AI coding assistant lain.</p>
-        <div class="flex flex-wrap justify-center gap-2 max-w-lg">
+        <h1 id="empty-title" class="text-2xl sm:text-3xl font-medium tracking-tight mb-3">Apa yang mau kamu bangun?</h1>
+        <p id="empty-desc" class="text-stone text-sm leading-relaxed max-w-sm mb-8">Ceritakan idemu. Prompt Analyzer akan susun langkah kerja bertahap lengkap dengan prompt siap tempel ke AI coding assistant lain.</p>
+        <div id="empty-examples-web" class="flex flex-wrap justify-center gap-2 max-w-lg">
           <button onclick="fillComposer('Aku mau bikin aplikasi pencatat keuangan pribadi, bisa lihat grafik pengeluaran per kategori tiap bulan.')" class="example-chip">Aplikasi pencatat keuangan</button>
           <button onclick="fillComposer('Aku ingin membuat landing page untuk jasa fotografi pernikahan, dengan galeri portofolio dan form booking.')" class="example-chip">Landing page fotografi</button>
           <button onclick="fillComposer('Aku mau bikin bot Discord yang bisa mengingatkan jadwal tugas kuliah anggota server.')" class="example-chip">Bot Discord pengingat tugas</button>
+        </div>
+        <div id="empty-examples-arduino" class="hidden flex-wrap justify-center gap-2 max-w-lg">
+          <button onclick="fillComposer('Aku mau bikin alat penyiram tanaman otomatis berbasis kelembapan tanah.')" class="example-chip">Penyiram tanaman otomatis</button>
+          <button onclick="fillComposer('Aku mau bikin sistem parkir otomatis dengan palang pintu dan sensor jarak.')" class="example-chip">Palang parkir otomatis</button>
+          <button onclick="fillComposer('Aku mau bikin alarm rumah dengan sensor gerak dan notifikasi buzzer.')" class="example-chip">Alarm rumah sensor gerak</button>
         </div>
       </div>
 
@@ -253,6 +292,12 @@
     <!-- Composer -->
     <div class="border-t border-line bg-canvas composer-shadow shrink-0">
       <div class="max-w-2xl mx-auto px-4 sm:px-6 py-3">
+        <div id="anti-slop-row" class="flex items-center justify-end gap-2 mb-1.5 px-1">
+          <span class="text-[11px] text-stone">Desain anti-AI-slop</span>
+          <button type="button" id="anti-slop-toggle" onclick="toggleAntiSlop()" aria-pressed="false" class="focus-ring relative w-8 h-[18px] rounded-full transition-colors bg-line" aria-label="Aktifkan desain anti-AI-slop">
+            <span class="anti-slop-knob absolute top-[2px] left-[2px] w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform"></span>
+          </button>
+        </div>
         <form id="composer-form" class="flex items-end gap-2 border border-line rounded-2xl bg-elevated focus-within:border-accent transition-colors px-3.5 py-2.5">
           <textarea
             id="composer-input"
@@ -327,8 +372,12 @@ const state = {
   model: localStorage.getItem('rancang_model') || '',
   availableModels: [], // diisi via fetchAvailableModels()
   modelsLoadStatus: 'idle', // idle | loading | done | error
-  stage: 'idea', // idea | clarifying | preview | generating | workflow
+  mode: localStorage.getItem('rancang_mode') || 'web', // web | arduino
+  antiSlop: false, // toggle desain anti-AI-slop, default OFF, tidak dipersist (manual tiap sesi)
+  stage: 'idea', // idea | components | clarifying | preview | generating | workflow
   idea: '',
+  suggestedComponents: [], // [{id, name, checked}] khusus mode arduino
+  selectedComponents: [], // nama komponen terpilih (string[]) setelah dikonfirmasi
   clarifyQuestions: [],
   clarifyAnswers: {},
   extraIdea: '',
@@ -433,8 +482,12 @@ function updateComposerState() {
   const input = composerInput();
   const send = $('composer-send');
   const hint = $('composer-hint');
+  const ideaPlaceholder = state.mode === 'arduino'
+    ? 'Ceritakan alat/proyek Arduino yang mau kamu bangun...'
+    : 'Ceritakan idemu...';
   const map = {
-    idea: { disabled: false, placeholder: 'Ceritakan idemu...', hint: '' },
+    idea: { disabled: false, placeholder: ideaPlaceholder, hint: '' },
+    components: { disabled: true, placeholder: 'Pilih komponen di atas dulu…', hint: 'Centang/tambah komponen di kartu atas untuk lanjut.' },
     clarifying: { disabled: true, placeholder: 'Jawab pertanyaan klarifikasi di atas dulu…', hint: 'Isi kartu pertanyaan di atas untuk lanjut.' },
     preview: { disabled: true, placeholder: 'Tambahkan catatan di kartu atas, lalu klik "Buat Workflow"…', hint: 'Periksa ringkasan di atas untuk lanjut.' },
     generating: { disabled: true, placeholder: 'Menyusun workflow…', hint: '' },
@@ -759,10 +812,21 @@ function openThreadFromHistory(id) {
   const item = loadHistory().find(x => x.id === id);
   if (!item) { toast('Riwayat tidak ditemukan (mungkin sudah dihapus).'); return; }
 
+  // Riwayat lama bisa saja dibuat sebelum mode Arduino ada — default ke 'web'.
+  const itemMode = item.mode === 'arduino' ? 'arduino' : 'web';
+  if (itemMode !== state.mode) {
+    state.mode = itemMode;
+    localStorage.setItem('rancang_mode', itemMode);
+    applyModeUI();
+  }
+
   $('chat-thread').innerHTML = '';
   showThread();
 
   addUserMessage(item.idea);
+  if (item.selectedComponents && item.selectedComponents.length) {
+    addAssistantText('Komponen dipilih: ' + item.selectedComponents.join(', '));
+  }
   const answers = Object.values(item.clarifyAnswers || {});
   if (answers.length) {
     const el = document.createElement('div');
@@ -773,13 +837,14 @@ function openThreadFromHistory(id) {
   if (item.extraIdea) addUserMessage(item.extraIdea);
 
   state.idea = item.idea;
+  state.selectedComponents = item.selectedComponents || [];
   state.clarifyAnswers = item.clarifyAnswers || {};
   state.extraIdea = item.extraIdea || '';
   state.workflow = item.workflow;
   state.activeHistoryId = item.id;
   state.stage = 'workflow';
 
-  renderWorkflowCard(item.workflow);
+  renderWorkflowCard(item.workflow, !!item.antiSlop);
   updateComposerState();
   renderSidebarHistory();
   toggleSidebar(false);
@@ -798,11 +863,16 @@ function deleteHistoryItem(id) {
 function startNewProject() {
   state.stage = 'idea';
   state.idea = '';
+  state.suggestedComponents = [];
+  state.selectedComponents = [];
   state.clarifyQuestions = [];
   state.clarifyAnswers = {};
   state.extraIdea = '';
   state.workflow = null;
   state.activeHistoryId = null;
+  state.antiSlop = false;
+  const antiSlopBtn = $('anti-slop-toggle');
+  if (antiSlopBtn) antiSlopBtn.setAttribute('aria-pressed', 'false');
 
   $('chat-thread').innerHTML = '';
   $('chat-thread').classList.add('hidden');
@@ -812,6 +882,48 @@ function startNewProject() {
   toggleSidebar(false);
   composerInput().focus();
 }
+
+// ============================================================
+// MODE TOGGLE (WEB | ARDUINO)
+// ============================================================
+function applyModeUI() {
+  document.querySelectorAll('.mode-toggle-btn').forEach(btn => {
+    btn.classList.toggle('mode-active', btn.dataset.mode === state.mode);
+  });
+  $('empty-examples-web').classList.toggle('hidden', state.mode !== 'web');
+  $('empty-examples-arduino').classList.toggle('hidden', state.mode === 'web');
+  $('empty-examples-arduino').classList.toggle('flex', state.mode === 'arduino');
+  $('anti-slop-row').classList.toggle('hidden', state.mode !== 'web');
+  if (state.mode === 'arduino') {
+    $('empty-title').textContent = 'Alat elektronik apa yang mau kamu bangun?';
+    $('empty-desc').textContent = 'Ceritakan proyek Arduino/elektronikamu. Prompt Analyzer akan susun daftar komponen, skema wiring, dan prompt eksekusi bertahap.';
+  } else {
+    $('empty-title').textContent = 'Apa yang mau kamu bangun?';
+    $('empty-desc').textContent = 'Ceritakan idemu. Prompt Analyzer akan susun langkah kerja bertahap lengkap dengan prompt siap tempel ke AI coding assistant lain.';
+  }
+}
+
+function toggleAntiSlop() {
+  state.antiSlop = !state.antiSlop;
+  const btn = $('anti-slop-toggle');
+  btn.setAttribute('aria-pressed', String(state.antiSlop));
+}
+
+function setAppMode(mode) {
+  if (mode === state.mode) return;
+  // Ganti mode di tengah proyek yang sedang berjalan akan membingungkan
+  // (pertanyaan/komponen dari mode lama tidak relevan) — jadi reset ke awal.
+  const wasMidProject = state.stage !== 'idea' && state.stage !== 'workflow';
+  state.mode = mode;
+  localStorage.setItem('rancang_mode', mode);
+  applyModeUI();
+  if (wasMidProject || state.stage === 'workflow') {
+    startNewProject();
+  } else {
+    updateComposerState();
+  }
+}
+applyModeUI();
 
 // ============================================================
 // GEMINI API CALL
@@ -901,8 +1013,14 @@ function backoffDelay(attempt) {
 async function submitIdea(idea, isRetry) {
   if (!isRetry) addUserMessage(idea);
   state.idea = idea;
-  state.stage = 'clarifying';
   state.activeHistoryId = null;
+
+  if (state.mode === 'arduino') {
+    await submitIdeaArduino(idea, isRetry);
+    return;
+  }
+
+  state.stage = 'clarifying';
   updateComposerState();
   renderSidebarHistory();
 
@@ -946,6 +1064,183 @@ Kembalikan HANYA JSON dengan struktur persis seperti ini, tanpa teks lain, tanpa
     setTimeout(() => {
       addErrorWithRetry('Gagal menganalisis ide: ' + e.message, () => submitIdea(idea, true));
       state.stage = 'idea';
+      updateComposerState();
+    }, 180);
+  }
+}
+
+// ---- Mode Arduino: langkah 0 — saran komponen ----------------------
+async function submitIdeaArduino(idea, isRetry) {
+  state.stage = 'components';
+  updateComposerState();
+  renderSidebarHistory();
+
+  const thinking = addThinking('Menganalisis kebutuhan komponen elektronika');
+
+  const systemPrompt = `Kamu adalah Electronics Engineer berpengalaman dengan Arduino/ESP32/Raspberry Pi dan elektronika hobi. Berdasarkan ide proyek dari user, susun daftar komponen elektronika yang relevan untuk mewujudkan proyek itu.
+
+ATURAN:
+- Sertakan mikrokontroler yang paling wajar untuk proyek ini (Arduino Uno, ESP32, dsb) sebagai salah satu komponen.
+- Sertakan komponen inti yang PASTI dibutuhkan (checked: true) dan komponen pendukung yang umum dipakai tapi opsional (checked: false) — misal breadboard, kabel jumper, power supply biasanya checked: true karena hampir selalu perlu.
+- Gunakan nama komponen yang spesifik dan umum dikenal (contoh: "Soil Moisture Sensor", "Mini Water Pump 5V", "Relay Module 1 Channel", "Breadboard 830 titik", "Kabel Jumper Male-Female"), jangan istilah generik seperti "sensor" saja.
+- Buat 6 sampai 12 item, urutkan dari komponen paling sentral ke pendukung.
+
+Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
+{
+  "components": [
+    { "id": "c1", "name": "nama komponen", "checked": true }
+  ]
+}`;
+
+  try {
+    const result = await callGemini(
+      systemPrompt,
+      `Ide proyek: """${idea}"""`,
+      true,
+      (attempt, max, reason) => updateThinkingLabel(thinking, `Server Gemini ${reason}, mencoba lagi (${attempt}/${max})…`)
+    );
+    state.suggestedComponents = (result.components || []).map((c, i) => ({
+      id: c.id || ('c' + i),
+      name: c.name,
+      checked: c.checked !== false,
+    }));
+    removeNode(thinking);
+    setTimeout(() => {
+      addAssistantText('Ini komponen yang biasanya dipakai untuk proyek seperti ini. Sesuaikan sebelum lanjut:');
+      renderComponentCard();
+    }, 180);
+  } catch (e) {
+    console.error(e);
+    removeNode(thinking);
+    setTimeout(() => {
+      addErrorWithRetry('Gagal menganalisis komponen: ' + e.message, () => submitIdeaArduino(idea, true));
+      state.stage = 'idea';
+      updateComposerState();
+    }, 180);
+  }
+}
+
+function renderComponentCard() {
+  const card = document.createElement('div');
+  card.className = 'max-w-[90%] border border-line rounded-xl bg-elevated p-4 sm:p-5 space-y-4';
+
+  const grid = document.createElement('div');
+  grid.className = 'grid grid-cols-1 sm:grid-cols-2 gap-2';
+  card.appendChild(grid);
+
+  function renderChip(comp) {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'component-chip' + (comp.checked ? ' checked' : '');
+    chip.innerHTML = `
+      <span class="chip-check"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span>
+      <span class="text-sm flex-1 text-left">${escapeHtml(comp.name)}</span>
+    `;
+    chip.addEventListener('click', () => {
+      comp.checked = !comp.checked;
+      chip.classList.toggle('checked', comp.checked);
+    });
+    return chip;
+  }
+
+  state.suggestedComponents.forEach(comp => grid.appendChild(renderChip(comp)));
+
+  // Baris tambah komponen manual (buzzer, RFID, solenoid, dsb yang mungkin
+  // tidak muncul di saran AI).
+  const addRow = document.createElement('div');
+  addRow.className = 'flex items-center gap-2 pt-1';
+  addRow.innerHTML = `
+    <input type="text" class="add-component-input flex-1 border border-line rounded-lg bg-canvas focus:border-accent transition-colors px-3 py-2 text-sm placeholder:text-stone/60" placeholder="Tambah komponen lain (mis. Buzzer, RFID RC522, Solenoid Valve)...">
+    <button type="button" class="add-component-btn focus-ring shrink-0 text-xs font-medium border border-line px-3 py-2 rounded-lg hover:border-ink transition-colors bg-elevated">+ Tambah</button>
+  `;
+  card.appendChild(addRow);
+
+  const addInput = addRow.querySelector('.add-component-input');
+  const addBtn = addRow.querySelector('.add-component-btn');
+
+  function addManualComponent() {
+    const name = addInput.value.trim();
+    if (!name) return;
+    const comp = { id: 'manual_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name, checked: true };
+    state.suggestedComponents.push(comp);
+    grid.appendChild(renderChip(comp));
+    addInput.value = '';
+    addInput.focus();
+  }
+  addBtn.addEventListener('click', addManualComponent);
+  addInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addManualComponent(); }
+  });
+
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'button';
+  submitBtn.className = 'focus-ring bg-ink text-canvas px-5 py-2.5 rounded-lg text-sm font-medium hover:bg-accent transition-colors';
+  submitBtn.textContent = 'Lanjut dengan komponen ini';
+  submitBtn.addEventListener('click', () => handleComponentsSubmit(card));
+  card.appendChild(submitBtn);
+
+  addAssistantNode(card);
+}
+
+function handleComponentsSubmit(card) {
+  const selected = state.suggestedComponents.filter(c => c.checked).map(c => c.name);
+  if (selected.length === 0) {
+    toast('Pilih atau tambahkan minimal satu komponen dulu.');
+    return;
+  }
+  state.selectedComponents = selected;
+
+  card.querySelectorAll('button, input').forEach(el => el.disabled = true);
+  card.style.transition = 'opacity .25s ease';
+  card.classList.add('opacity-60');
+
+  addUserMessage('Komponen dipilih: ' + selected.join(', '));
+
+  state.stage = 'clarifying';
+  updateComposerState();
+  setTimeout(() => submitClarifyArduino(), 150);
+}
+
+// ---- Mode Arduino: langkah 1 — pertanyaan klarifikasi kontekstual komponen ----
+async function submitClarifyArduino(isRetry) {
+  const thinking = addThinking('Menyusun pertanyaan teknis berdasarkan komponen');
+
+  const systemPrompt = `Kamu adalah Electronics Engineer yang menginterview klien sebelum merancang wiring dan kode. Berdasarkan ide proyek dan daftar komponen yang SUDAH dipilih user, buat pertanyaan klarifikasi yang akan menentukan keputusan wiring/logika konkret — misalnya: pin mikrokontroler mana yang dipakai untuk tiap komponen (kalau user punya preferensi), sumber daya (baterai/adaptor/USB, berapa volt), ambang batas sensor (misal kapan pompa air menyala berdasarkan level kelembapan), dan perilaku sistem saat kondisi tertentu tercapai.
+
+ATURAN:
+- Jangan tanya hal yang sudah jelas dari daftar komponen atau ide.
+- Setiap pertanyaan harus mengubah keputusan wiring/kode konkret nantinya.
+- Sertakan 2-4 opsi jawaban singkat yang realistis per pertanyaan.
+- Buat 3-5 pertanyaan saja.
+
+Kembalikan HANYA JSON, tanpa markdown fence:
+{
+  "questions": [
+    { "id": "q1", "question": "teks pertanyaan", "options": ["opsi 1", "opsi 2", "opsi 3"] }
+  ]
+}`;
+
+  const userPrompt = `Ide proyek: """${state.idea}"""\n\nKomponen yang dipilih user:\n${state.selectedComponents.map(c => `- ${c}`).join('\n')}`;
+
+  try {
+    const result = await callGemini(
+      systemPrompt,
+      userPrompt,
+      true,
+      (attempt, max, reason) => updateThinkingLabel(thinking, `Server Gemini ${reason}, mencoba lagi (${attempt}/${max})…`)
+    );
+    state.clarifyQuestions = result.questions || [];
+    removeNode(thinking);
+    setTimeout(() => {
+      addAssistantText('Oke, beberapa hal perlu dipertegas sebelum menyusun wiring:');
+      renderClarifyCard();
+    }, 180);
+  } catch (e) {
+    console.error(e);
+    removeNode(thinking);
+    setTimeout(() => {
+      addErrorWithRetry('Gagal menyusun pertanyaan: ' + e.message, () => submitClarifyArduino(true));
+      state.stage = 'components';
       updateComposerState();
     }, 180);
   }
@@ -1049,16 +1344,45 @@ async function handleGenerateWorkflow(extra, isRetry) {
   const fullContext = `IDE UTAMA:\n${state.idea}\n\nDETAIL KLARIFIKASI:\n${answersText}${state.extraIdea ? `\n\nCATATAN TAMBAHAN DARI USER:\n${state.extraIdea}` : ''}`;
 
   let activeThinkingNode = null;
+  const isArduino = state.mode === 'arduino';
+  const antiSlopActive = !isArduino && state.antiSlop;
+
+  const ANTI_SLOP_INSTRUCTIONS = `
+ATURAN DESAIN ANTI-AI-SLOP (WAJIB dipatuhi di setiap instruksi visual dalam prompt):
+- DILARANG memakai kombinasi yang langsung kelihatan "buatan AI": gradient ungu-ke-biru atau ungu-ke-pink ala SaaS generik, font Inter/Poppins/Roboto sebagai pilihan default tanpa alasan, hero section dengan judul besar-tengah lalu 3 kartu fitur berjejer di bawahnya, ikon dari satu set generik (Heroicons/Lucide dipakai polos tanpa penyesuaian), bayangan/shadow lembut generik di semua elemen, border-radius besar di semua elemen tanpa variasi, dan palet warna pastel/netral yang bisa jadi produk siapa saja.
+- WAJIB minta AI coding assistant membuat keputusan desain yang niat dan spesifik untuk proyek ini: pilih 1-2 warna aksen yang punya alasan tematik jelas (bukan default framework), tentukan tipografi dengan kepribadian (bisa serif ekspresif, monospace, atau sans-serif dengan pasangan font yang tidak lazim — bukan Inter polos), pecahkan pola layout simetris-membosankan (variasikan lebar kolom, sejajaran, whitespace asimetris jika sesuai konten).
+- Instruksikan agar detail kecil (micro-interaction, hover state, transisi) dirancang khusus untuk konteks proyek, bukan template hover:scale-105 generik yang dipakai di semua produk.
+- Jika ide proyek punya tema/industri spesifik, WAJIB arahkan palet warna dan gaya visual untuk merefleksikan tema tersebut secara jujur — bukan tema generik "tech startup" yang dipaksakan ke semua jenis proyek.
+`;
 
   try {
     // ---- PASS 1: Blueprint teknis ----------------------------------
     // Kunci mutu: paksa model memutuskan spek data & arsitektur DULU,
     // sebelum menulis prompt apa pun. Ini mencegah tiap step "mengarang"
     // struktur berbeda-beda saat pass 2 ditulis.
-    const thinkingBlueprint = addThinking('Merancang arsitektur & spesifikasi teknis');
+    const thinkingBlueprint = addThinking(isArduino ? 'Merancang arsitektur elektronik & pin mapping' : 'Merancang arsitektur & spesifikasi teknis');
     activeThinkingNode = thinkingBlueprint;
 
-    const blueprintSystemPrompt = `Kamu adalah Senior Software Architect. Berdasarkan ide proyek dan jawaban klarifikasi dari klien, buat SATU blueprint teknis yang akan dipakai sebagai sumber kebenaran tunggal untuk seluruh proyek — supaya setiap bagian yang dikerjakan nanti (oleh AI coding assistant yang berbeda-beda) tetap konsisten satu sama lain.
+    const componentsBlock = isArduino
+      ? `\n\nKOMPONEN YANG SUDAH DIPILIH USER:\n${state.selectedComponents.map(c => `- ${c}`).join('\n')}`
+      : '';
+
+    const blueprintSystemPrompt = isArduino ? `Kamu adalah Senior Embedded Systems Engineer. Berdasarkan ide proyek, komponen yang sudah dipilih user, dan jawaban klarifikasi, buat SATU blueprint teknis elektronik yang jadi sumber kebenaran tunggal untuk seluruh proyek — termasuk PIN MAPPING pasti — supaya setiap tahap (wiring maupun kode) tetap konsisten satu sama lain.
+
+Blueprint harus konkret, bukan deskriptif umum. Sertakan:
+- "stack": mikrokontroler yang dipakai beserta metode pemrograman (contoh: "ESP32 DevKit v1, diprogram via Arduino IDE").
+- "data_model": di sini isi dengan PIN MAPPING LENGKAP — setiap komponen dari daftar terpilih dipetakan ke pin spesifik mikrokontroler (contoh: "Soil Moisture Sensor: VCC->3V3, GND->GND, AOUT->GPIO34 (ADC)"). Ini WAJIB detail dan konsisten, karena akan dipakai ulang di semua tahap wiring nanti.
+- "core_rules": aturan teknis penting yang harus konsisten (contoh: ambang batas sensor, level tegangan logika, aturan debounce, sumber daya).
+- "milestones": urutan tahap pengerjaan dari assembly/wiring dasar ke kalibrasi/logika, 4 sampai 8 tahap. Tahap awal harus wiring komponen inti, tahap tengah wiring komponen lain + power, tahap akhir kalibrasi/pengujian logika.
+
+Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
+{
+  "project_title": "judul pendek, maksimal 6 kata",
+  "stack": "mikrokontroler & metode pemrograman, 1 kalimat",
+  "data_model": "PIN MAPPING lengkap per komponen dalam bentuk teks terstruktur multi-baris",
+  "core_rules": "ringkasan aturan teknis penting, teks singkat",
+  "milestones": ["nama tahap 1", "nama tahap 2", "..."]
+}` : `Kamu adalah Senior Software Architect. Berdasarkan ide proyek dan jawaban klarifikasi dari klien, buat SATU blueprint teknis yang akan dipakai sebagai sumber kebenaran tunggal untuk seluruh proyek — supaya setiap bagian yang dikerjakan nanti (oleh AI coding assistant yang berbeda-beda) tetap konsisten satu sama lain.
 
 Blueprint harus konkret, bukan deskriptif umum. Sertakan:
 - "stack": teknologi/framework/bahasa yang dipakai (ambil dari jawaban user; jika tidak disebutkan eksplisit, pilih yang paling wajar untuk jenis proyek ini dan sebutkan itu adalah default pilihanmu).
@@ -1077,7 +1401,7 @@ Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
 
     const blueprint = await callGemini(
       blueprintSystemPrompt,
-      fullContext,
+      fullContext + componentsBlock,
       true,
       (attempt, max, reason) => updateThinkingLabel(thinkingBlueprint, `Server Gemini ${reason}, mencoba lagi (${attempt}/${max})…`)
     );
@@ -1085,24 +1409,54 @@ Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
     activeThinkingNode = null;
 
     // ---- PASS 2: Tulis prompt eksekusi per-step, dengan blueprint sebagai konteks bersama ----
-    const thinkingSteps = addThinking('Menulis prompt eksekusi presisi untuk tiap tahap');
+    const thinkingSteps = addThinking(isArduino ? 'Menulis prompt & skema wiring tiap tahap' : 'Menulis prompt eksekusi presisi untuk tiap tahap');
     activeThinkingNode = thinkingSteps;
 
     const blueprintBlock = `KONTEKS PROYEK (SUMBER KEBENARAN — WAJIB dipatuhi konsisten di semua step):
 - Judul: ${blueprint.project_title}
 - Stack: ${blueprint.stack}
-- Struktur data:\n${blueprint.data_model}
+- ${isArduino ? 'Pin mapping' : 'Struktur data'}:\n${blueprint.data_model}
 - Aturan inti:\n${blueprint.core_rules}
 - Urutan tahap yang sudah disepakati: ${(blueprint.milestones || []).map((m, i) => `${i + 1}) ${m}`).join(', ')}`;
 
-    const stepsSystemPrompt = `Kamu adalah Expert Prompt Engineer yang menulis prompt eksekusi untuk AI coding assistant lain (ChatGPT/Claude/Gemini). Kamu akan diberi blueprint teknis proyek yang SUDAH DISEPAKATI — tugasmu menerjemahkan setiap tahap di blueprint itu menjadi satu prompt eksekusi yang sangat detail dan siap-tempel.
+    const stepsSystemPrompt = isArduino ? `Kamu adalah Expert Prompt Engineer sekaligus Embedded Systems Engineer yang menulis prompt eksekusi untuk AI coding assistant lain (ChatGPT/Claude/Gemini), DAN menggambar skema wiring dalam bentuk diagram ASCII/teks monospace. Kamu akan diberi blueprint teknis (termasuk pin mapping) yang SUDAH DISEPAKATI — tugasmu menerjemahkan setiap tahap jadi satu prompt eksekusi detail plus skema wiring visual untuk tahap itu.
+
+ATURAN PROMPT:
+- SEMUA step harus konsisten dengan pin mapping di blueprint — jangan pernah mengubah pin yang sudah ditentukan.
+- Setiap "prompt" WAJIB berisi ulang ringkasan konteks (mikrokontroler, komponen yang relevan di tahap ini, pin mapping yang relevan) di awal prompt-nya sendiri, supaya tetap dipahami penuh walau ditempel ke sesi AI baru yang terpisah dari step lain.
+- Prompt harus konkret: sebutkan nama pin persis, urutan langkah perakitan/pemrograman, dan kriteria "selesai" yang jelas.
+
+ATURAN DIAGRAM WIRING ("wiring_diagram"):
+- WAJIB berupa teks ASCII monospace polos, PERSIS seperti gaya notepad berikut (gunakan panah "----->" dan penjelasan pin di kedua ujung):
+ESP32 PIN 34 -----------> AOUT Soil Moisture Sensor
+ESP32 3V3    -----------> VCC Soil Moisture Sensor
+ESP32 GND    -----------> GND Soil Moisture Sensor
+- Satu baris untuk setiap kabel/koneksi. Urutkan dari VCC/power dulu, baru GND, baru pin sinyal/data.
+- Hanya sertakan komponen yang benar-benar dikerjakan di tahap tersebut (bukan seluruh proyek sekaligus) — supaya diagram tetap fokus dan tidak membingungkan.
+- Jika tahap tersebut murni kalibrasi/logika/software tanpa ada kabel baru yang dipasang, set "wiring_diagram" menjadi null (bukan string kosong, bukan mengulang diagram tahap sebelumnya).
+- Gunakan nama pin/komponen PERSIS seperti di blueprint pin mapping, jangan mengarang nama baru.
+
+Untuk SETIAP tahap dari daftar milestone yang diberikan, hasilkan:
+1. "title": nama tahap (ambil/samakan dengan milestone, tanpa embel-embel "Langkah 1:").
+2. "reason": 1-2 kalimat kenapa tahap ini di urutan ini dan apa hubungannya dengan tahap sebelumnya.
+3. "note": instruksi konkret hal spesifik yang harus user sesuaikan sendiri (contoh: sesuaikan panjang kabel, ganti nilai ambang batas sesuai kondisi tanah/ruangan asli) — bukan catatan generik.
+4. "prompt": prompt eksekusi lengkap siap tempel, mengikuti aturan di atas.
+5. "wiring_diagram": diagram ASCII sesuai aturan di atas, atau null.
+
+Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
+{
+  "project_title": "${(blueprint.project_title || '').replace(/"/g, '\\"')}",
+  "steps": [
+    { "title": "...", "reason": "...", "note": "...", "prompt": "...", "wiring_diagram": "..." }
+  ]
+}` : `Kamu adalah Expert Prompt Engineer yang menulis prompt eksekusi untuk AI coding assistant lain (ChatGPT/Claude/Gemini). Kamu akan diberi blueprint teknis proyek yang SUDAH DISEPAKATI — tugasmu menerjemahkan setiap tahap di blueprint itu menjadi satu prompt eksekusi yang sangat detail dan siap-tempel.
 
 ATURAN PENTING:
 - SEMUA step harus konsisten dengan blueprint yang diberikan — nama field, struktur data, dan aturan bisnis harus SAMA PERSIS di setiap step, jangan menciptakan struktur baru yang berbeda dari blueprint.
 - Setiap "prompt" WAJIB berisi ulang ringkasan konteks proyek (stack, struktur data relevan, apa yang sudah dikerjakan di step sebelumnya) di bagian awal prompt-nya sendiri — supaya prompt itu tetap bisa dipahami penuh walau ditempel ke sesi AI yang sama sekali baru dan terpisah dari step lain.
 - Prompt harus konkret: sebutkan nama file/fungsi/komponen yang diharapkan, format input-output, dan kriteria "selesai" yang jelas. Hindari kalimat umum seperti "buat aplikasi yang bagus" — ganti dengan instruksi teknis presisi.
 - Dilarang menyingkat atau merangkum blueprint secara dangkal; salin detail teknis yang relevan apa adanya ke dalam prompt.
-
+${antiSlopActive ? ANTI_SLOP_INSTRUCTIONS : ''}
 Untuk SETIAP tahap dari daftar milestone yang diberikan, hasilkan:
 1. "title": nama tahap (ambil/samakan dengan milestone, tanpa embel-embel "Langkah 1:").
 2. "reason": 1-2 kalimat kenapa tahap ini di urutan ini dan apa hubungannya dengan tahap sebelumnya.
@@ -1117,7 +1471,7 @@ Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
   ]
 }`;
 
-    const stepsUserPrompt = `${blueprintBlock}\n\n${fullContext}\n\nTulis prompt eksekusi lengkap untuk SETIAP tahap yang tercantum di "Urutan tahap yang sudah disepakati" di atas, satu per satu, sesuai urutannya.`;
+    const stepsUserPrompt = `${blueprintBlock}\n\n${fullContext}${componentsBlock}\n\nTulis ${isArduino ? 'prompt eksekusi dan skema wiring lengkap' : 'prompt eksekusi lengkap'} untuk SETIAP tahap yang tercantum di "Urutan tahap yang sudah disepakati" di atas, satu per satu, sesuai urutannya.`;
 
     const result = await callGemini(
       stepsSystemPrompt,
@@ -1131,7 +1485,7 @@ Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
     activeThinkingNode = null;
 
     setTimeout(() => {
-      renderWorkflowCard(result);
+      renderWorkflowCard(result, antiSlopActive);
       state.stage = 'workflow';
       updateComposerState();
 
@@ -1140,7 +1494,10 @@ Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
       addToHistory({
         id,
         title: result.project_title || 'Workflow tanpa judul',
+        mode: state.mode,
+        antiSlop: antiSlopActive,
         idea: state.idea,
+        selectedComponents: state.selectedComponents,
         clarifyAnswers: state.clarifyAnswers,
         extraIdea: state.extraIdea,
         workflow: result,
@@ -1162,14 +1519,17 @@ Kembalikan HANYA JSON, tanpa markdown fence, dengan struktur persis:
 // ============================================================
 // WORKFLOW CARD
 // ============================================================
-function renderWorkflowCard(wf) {
+function renderWorkflowCard(wf, antiSlopUsed) {
   const wrap = document.createElement('div');
   wrap.className = 'w-full space-y-6';
 
   const header = document.createElement('div');
   header.className = 'flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3';
   header.innerHTML = `
-    <h3 class="text-lg font-semibold">${escapeHtml(wf.project_title || 'Workflow proyekmu')}</h3>
+    <div class="flex items-center gap-2 flex-wrap">
+      <h3 class="text-lg font-semibold">${escapeHtml(wf.project_title || 'Workflow proyekmu')}</h3>
+      ${antiSlopUsed ? `<span class="text-[10px] font-mono uppercase tracking-wide bg-accentsoft text-accentdark px-2 py-0.5 rounded-full">anti-slop</span>` : ''}
+    </div>
     <div class="flex items-center gap-2 shrink-0">
       <button type="button" id="btn-copy-all" class="focus-ring text-xs border border-line px-3 py-2 rounded-lg hover:border-ink transition-colors bg-elevated">Salin Semua</button>
       <button type="button" id="btn-download" class="focus-ring text-xs border border-line px-3 py-2 rounded-lg hover:border-ink transition-colors bg-elevated">Unduh (.md)</button>
@@ -1195,6 +1555,20 @@ function renderWorkflowCard(wf) {
         <p class="text-xs text-warn font-medium mb-0.5">Catatan sebelum pakai</p>
         <p class="text-sm leading-relaxed">${escapeHtml(step.note)}</p>
       </div>` : ''}
+      ${step.wiring_diagram ? `
+      <div class="border border-line rounded-lg overflow-hidden mb-4">
+        <div class="flex items-center justify-between px-3 py-2 border-b border-line bg-canvas">
+          <span class="text-xs text-stone font-mono flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/><path d="M10 7h4a3 3 0 0 1 3 3v4"/></svg>
+            skema wiring
+          </span>
+          <button type="button" data-copy-wire-idx="${idx}" class="focus-ring copy-wiring-btn text-xs border border-line px-2.5 py-1.5 rounded-md hover:border-ink transition-colors flex items-center gap-1.5 bg-elevated">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Salin</span>
+          </button>
+        </div>
+        <pre class="wiring-diagram">${escapeHtml(step.wiring_diagram)}</pre>
+      </div>` : ''}
       <div class="border border-line rounded-lg bg-canvas overflow-hidden">
         <div class="flex items-center justify-between px-3 py-2 border-b border-line">
           <span class="text-xs text-stone font-mono">prompt</span>
@@ -1215,8 +1589,21 @@ function renderWorkflowCard(wf) {
   wrap.querySelectorAll('.copy-prompt-btn').forEach(btn => {
     btn.addEventListener('click', () => copyPrompt(btn, Number(btn.dataset.copyIdx)));
   });
+  wrap.querySelectorAll('.copy-wiring-btn').forEach(btn => {
+    btn.addEventListener('click', () => copyWiring(btn, Number(btn.dataset.copyWireIdx)));
+  });
   wrap.querySelector('#btn-copy-all').addEventListener('click', copyAllPrompts);
   wrap.querySelector('#btn-download').addEventListener('click', downloadWorkflow);
+}
+
+async function copyWiring(btnEl, idx) {
+  const text = state.workflow.steps[idx].wiring_diagram;
+  const ok = await copyText(text);
+  const original = btnEl.innerHTML;
+  btnEl.innerHTML = ok ? '<span>Tersalin</span>' : '<span>Gagal, coba lagi</span>';
+  btnEl.classList.add('copy-pulse');
+  if (!ok) toast('Tidak bisa mengakses clipboard. Coba salin manual dari kotak skema.');
+  setTimeout(() => { btnEl.innerHTML = original; btnEl.classList.remove('copy-pulse'); }, 1500);
 }
 
 async function copyPrompt(btnEl, idx) {
@@ -1260,6 +1647,7 @@ function buildMarkdown() {
     out += `## ${idx + 1}. ${step.title}\n\n`;
     out += `${step.reason}\n\n`;
     if (step.note) out += `**Catatan:** ${step.note}\n\n`;
+    if (step.wiring_diagram) out += `**Skema wiring:**\n\n\`\`\`\n${step.wiring_diagram}\n\`\`\`\n\n`;
     out += `**Prompt eksekusi:**\n\n\`\`\`\n${step.prompt}\n\`\`\`\n\n`;
   });
   return out;
